@@ -1,0 +1,403 @@
+/* Ascension — explorer sprites, the tent at the camp, the climb scene, the Pomodoro HUD and the pixel snow.
+   Palette taken from the character sheet: orange #f0862b, rust #b8582a, cream #ecd5b5, sky #83cbec, blue #3173a2, slate #3d4f61. */
+
+/* ── Explorer sprites (one atlas, original poses only) ────────────── */
+.chara-holder { display: block; width: var(--chara-cell, 112px); line-height: 0; pointer-events: none; }
+.chara-holder[data-facing='left'] { transform: scaleX(-1); }
+.chara {
+  display: block;
+  width: 100%;
+  aspect-ratio: 133 / 171;
+  background-image: url('/sprites/chara/chara-atlas.png');
+  background-repeat: no-repeat;
+  background-size: 800% 100%; /* 8 poses in a row */
+  background-position-y: 0;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+  --frame: 0;
+  background-position-x: calc(var(--frame) * 100% / 7);
+}
+.chara-rest { --frame: 0; animation: chara-breathe 1.8s steps(1, end) infinite; }
+.chara-walk { animation: chara-walk-frames .8s steps(1, end) infinite, chara-walk-bob .8s steps(1, end) infinite; }
+.chara-run { animation: chara-run-frames .5s steps(1, end) infinite, chara-walk-bob .5s steps(1, end) infinite; }
+.chara-climb { --frame: 3; animation: chara-climb-shift 1.4s steps(1, end) infinite; }
+.chara-jump { --frame: 4; }
+.chara-cheer { animation: chara-cheer-frames .7s steps(1, end) infinite, chara-walk-bob .7s steps(1, end) infinite; }
+.chara-tired { --frame: 6; animation: chara-breathe 2.4s steps(1, end) infinite; }
+.chara-alert { --frame: 7; animation: chara-breathe 1.2s steps(1, end) infinite; }
+
+/* Frames: 0 repos · 1 marche · 2 course · 3 grimpe · 4 saut · 5 célébration · 6 fatigué · 7 interaction */
+@keyframes chara-walk-frames { 0%, 49.99% { --frame: 1; } 50%, 100% { --frame: 0; } }
+@keyframes chara-run-frames { 0%, 49.99% { --frame: 2; } 50%, 100% { --frame: 1; } }
+@keyframes chara-cheer-frames { 0%, 49.99% { --frame: 5; } 50%, 100% { --frame: 4; } }
+@keyframes chara-walk-bob { 0%, 49.99% { translate: 0 0; } 50%, 100% { translate: 0 -2.2%; } }
+@keyframes chara-breathe { 0%, 49.99% { translate: 0 0; } 50%, 100% { translate: 0 -1.1%; } }
+@keyframes chara-climb-shift { 0%, 49.99% { translate: 0 0; } 50%, 100% { translate: 1.2% -1.6%; } }
+@property --frame { syntax: '<number>'; inherits: false; initial-value: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .chara { animation: none !important; translate: none; }
+  .chara-walk, .chara-run { --frame: 1; }
+  .chara-cheer { --frame: 5; }
+}
+
+/* ── Pixel snow ───────────────────────────────────────────────────── */
+/* A parent defines --px (the size of one art pixel). Each layer is one tiny square carrying all its flakes as shadows. */
+.snowfall { position: absolute; z-index: 3; inset: 0; overflow: hidden; pointer-events: none; }
+.snow-wrap { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.snow-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  width: calc(var(--px) * var(--snow-size, 1));
+  height: calc(var(--px) * var(--snow-size, 1));
+  background: transparent;
+  will-change: transform;
+  animation: snow-fall 9s steps(150, end) infinite, snow-sway 3s steps(4, end) infinite;
+}
+.snow-layer[style*='--snow-sway: 0'] { animation-name: snow-fall; }
+@keyframes snow-fall { from { transform: translateY(0); } to { transform: translateY(calc(var(--px) * var(--snow-rows))); } }
+@keyframes snow-sway { 0%, 100% { translate: 0 0; } 50% { translate: calc(var(--px) * var(--snow-sway, 0)) 0; } }
+@media (prefers-reduced-motion: reduce) { .snow-layer { animation: none; } }
+
+/* ── The walk scene (session, summary, progression) ───────────────── */
+.expedition-scene {
+  position: relative;
+  isolation: isolate;
+  container-type: inline-size;
+  width: 100%;
+  aspect-ratio: 120 / 150;
+  overflow: hidden;
+  background: #1b2c46;
+  --loop: 20s;
+}
+.expedition-scene > *, .expedition-scene .run-strip { --px: calc(100cqw / 120); }
+/* The picture is 120 x 150 art pixels, glued to the bottom of the scene (the stage). On a tall screen the sky goes on above it. */
+.run-stage { position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--px) * 150); }
+.run-sky { position: absolute; z-index: 0; left: 0; bottom: 0; display: block; width: 100%; height: calc(var(--px) * 280); max-width: none; image-rendering: pixelated; }
+.expedition-scene:not(.is-fill) .run-extra { display: none; }
+
+/* A strip of landscape: two tiles wide, it slides by one tile per turn, one art pixel per step. */
+.run-strip {
+  position: absolute;
+  left: 0;
+  bottom: calc(var(--px) * var(--bottom));
+  width: calc(var(--px) * var(--w) * 2);
+  height: calc(var(--px) * var(--h));
+  background-repeat: repeat-x;
+  background-size: calc(var(--px) * var(--w)) 100%;
+  image-rendering: pixelated;
+  animation: strip-scroll var(--secs) steps(var(--w), end) var(--delay, 0s) infinite;
+  pointer-events: none;
+}
+.run-strip.is-still { width: 100%; animation: none; }
+@keyframes strip-scroll { to { translate: calc(var(--px) * var(--w) * -1) 0; } }
+
+/* snow, rain, dust, ash */
+.part-layer { position: absolute; left: 0; right: 0; top: calc(var(--px) * -130); height: calc(var(--px) * 280); overflow: hidden; pointer-events: none; }
+.part-x, .part-y { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.part-x { animation: part-x var(--secs) steps(var(--w), end) infinite; }
+.part-y { animation: part-y var(--secs) steps(var(--p), end) infinite; }
+.part-dot { display: block; width: calc(var(--px) * var(--sw)); height: calc(var(--px) * var(--sh)); background: transparent; }
+@keyframes part-x { to { translate: calc(var(--px) * var(--w) * -1) 0; } }
+@keyframes part-y { to { translate: 0 calc(var(--px) * var(--p) * var(--dir)); } }
+.part-layer.is-gust { opacity: 0; animation: gust var(--loop) steps(6, end) infinite; }
+@keyframes gust { 0%, 26% { opacity: 0; } 30%, 52% { opacity: 1; } 56%, 70% { opacity: 0; } 73%, 83% { opacity: .9; } 87%, 100% { opacity: 0; } }
+
+/* the sky goes dark in the heart of the loop; lightning strikes once */
+.run-storm { position: absolute; z-index: 6; inset: 0; opacity: 0; pointer-events: none; animation: storm var(--loop) steps(10, end) infinite; }
+@keyframes storm { 0%, 20% { opacity: 0; } 35%, 55% { opacity: .5; } 70% { opacity: .2; } 90%, 100% { opacity: 0; } }
+.run-flash { position: absolute; z-index: 7; inset: 0; background: #fff; opacity: 0; pointer-events: none; animation: flash var(--loop) steps(1, end) infinite; }
+@keyframes flash { 0%, 60.9% { opacity: 0; } 61% { opacity: .8; } 61.6% { opacity: 0; } 62.2% { opacity: .5; } 62.8%, 100% { opacity: 0; } }
+.run-bolt { position: absolute; z-index: 1; left: 0; top: 0; width: var(--px); height: var(--px); opacity: 0; pointer-events: none; animation: bolt var(--loop) steps(1, end) infinite; }
+@keyframes bolt { 0%, 60.9% { opacity: 0; } 61%, 62.8% { opacity: 1; } 62.9%, 100% { opacity: 0; } }
+.run-glow { position: absolute; z-index: 1; left: 0; right: 0; top: calc(var(--px) * 74); height: calc(var(--px) * 40); opacity: .14; pointer-events: none; animation: glow 4s steps(1, end) infinite; }
+@keyframes glow { 0%, 49.9% { opacity: .12; } 50%, 100% { opacity: .22; } }
+
+/* the explorer: whole art pixels, leaning into the gusts */
+.run-walker { --chara-cell: calc(var(--px) * 24); position: absolute; z-index: 3; left: calc(var(--px) * 40); top: calc(var(--px) * 133); width: var(--chara-cell); translate: -50% -100%; }
+.run-lean { transform-origin: 50% 100%; transform: skewX(-5deg); animation: lean var(--loop) steps(1, end) infinite; }
+@keyframes lean {
+  0%, 28.9% { transform: skewX(-5deg); } 29% { transform: skewX(-8deg); } 31% { transform: skewX(-11deg); } 33%, 51% { transform: skewX(-14deg); }
+  52% { transform: skewX(-8deg); } 56%, 71% { transform: skewX(-5deg); } 72% { transform: skewX(-11deg); } 76%, 84% { transform: skewX(-13deg); } 85%, 100% { transform: skewX(-6deg); }
+}
+.run-walker .chara-walk { animation-duration: 1s; }
+.run-breath, .run-gale { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
+.run-breath { left: calc(var(--px) * 19); top: calc(var(--px) * 6); }
+.run-breath i { position: absolute; left: 0; top: 0; width: calc(var(--px) * 2); height: calc(var(--px) * 2); background: #ffffffd0; opacity: 0; animation: breath 2.5s steps(8, end) infinite; }
+.run-breath i:nth-child(2) { animation-delay: -.83s; }
+.run-breath i:nth-child(3) { animation-delay: -1.66s; }
+@keyframes breath { 0% { opacity: 0; translate: 0 0; } 15% { opacity: .95; } 70% { opacity: .5; } 100% { opacity: 0; translate: calc(var(--px) * -18) calc(var(--px) * -9); } }
+.run-gale { left: calc(var(--px) * 3); top: calc(var(--px) * 12); }
+.run-gale i { position: absolute; left: 0; top: 0; width: calc(var(--px) * 4); height: var(--px); background: #ffffffb0; opacity: 0; animation: gale 1s steps(8, end) infinite; }
+.run-gale i:nth-child(2) { top: calc(var(--px) * 6); animation-delay: -.33s; }
+.run-gale i:nth-child(3) { top: calc(var(--px) * 11); animation-delay: -.66s; }
+@keyframes gale { 0% { opacity: 0; translate: calc(var(--px) * 3) 0; } 25% { opacity: .9; } 100% { opacity: 0; translate: calc(var(--px) * -10) 0; } }
+.state-paused .run-gale, .state-idle .run-gale, .state-idle .run-breath { display: none; }
+
+/* footprints left in the ground: they slide back at the speed of the ground and fade */
+.run-prints { position: absolute; z-index: 2; left: calc(var(--px) * 36); top: calc(var(--px) * 132); width: 0; height: 0; pointer-events: none; }
+.run-prints i { position: absolute; left: 0; top: 0; width: calc(var(--px) * 4); height: var(--px); background: var(--print); opacity: 0; animation: print 2.5s steps(60, end) infinite; }
+.run-prints i:nth-child(1) { animation-delay: 0s; }
+.run-prints i:nth-child(2) { animation-delay: -.5s; margin-top: var(--px); }
+.run-prints i:nth-child(3) { animation-delay: -1s; }
+.run-prints i:nth-child(4) { animation-delay: -1.5s; margin-top: var(--px); }
+.run-prints i:nth-child(5) { animation-delay: -2s; }
+@keyframes print { 0% { opacity: .85; translate: 0 0; } 75% { opacity: .85; } 100% { opacity: 0; translate: calc(var(--px) * -60) 0; } }
+
+/* ── The session: the scene fills the screen, the controls sit in a panel at the bottom ── */
+.run-screen { position: fixed; z-index: 30; inset: 0; display: flex; flex-direction: column; overflow: hidden; overscroll-behavior: none; touch-action: manipulation; color: #fff; background: #070f1c; }
+.run-stage-area { position: relative; flex: 1 1 0; min-height: 0; display: flex; justify-content: center; container-type: size; background: #0b1730; }
+/* the scene is as wide as the screen, as high as the area above the panel; on a wide screen it keeps its portrait shape */
+.run-stage-area > .expedition-scene { flex: none; width: min(100cqw, calc(100cqh * .8)); height: 100%; aspect-ratio: auto; }
+.run-screen .hud-top { top: calc(8px + env(safe-area-inset-top, 0px)); left: calc(8px + env(safe-area-inset-left, 0px)); right: calc(8px + env(safe-area-inset-right, 0px)); }
+.run-panel {
+  position: relative; z-index: 2; display: grid; gap: 8px; flex: none;
+  padding: 12px max(16px, calc((100% - 520px) / 2)) calc(12px + env(safe-area-inset-bottom, 0px));
+  --edge: var(--night-edge); --hi: #36587f; --lo: #08111f;
+  background: var(--night); box-shadow: inset 0 var(--u) 0 0 #36587f, 0 calc(var(--u) * -1) 0 0 var(--night-edge);
+}
+.run-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; }
+.run-panel .session-eyebrow { flex: none; color: #9fd0f0; }
+.run-panel h2 { min-width: 0; margin: 0; overflow: hidden; color: #fff; font-size: 12px; font-weight: 400; text-align: right; text-overflow: ellipsis; white-space: nowrap; text-shadow: none; }
+.run-panel .run-title strong { color: #fff; }
+.run-panel .run-title span { color: #ffd36b; font-size: 12px; }
+.run-panel .exp-gauge { position: static; z-index: auto; }
+.run-panel .run-state { color: #b9cfe2; }
+.run-panel .run-state b { color: #9fd0f0; }
+.run-panel .pixel-meter { height: 12px; --field: #060f1c; --lo: #02070e; }
+.run-panel .run-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 2px; }
+.run-panel .run-actions:has(.is-good) { grid-template-columns: 1fr 1.5fr; }
+.run-panel .run-actions .pixel-button { min-height: 44px; padding: 8px 10px; font-size: 12px; }
+.run-panel .run-lock { margin: 0; color: #8fb0cd; line-height: 1.5; }
+@media (max-height: 640px) { .run-panel { gap: 6px; padding-top: 8px; } .run-panel-head h2 { display: none; } }
+
+/* "Quitter ?" : the warning laid over the scene */
+.quit-backdrop { position: absolute; z-index: 5; inset: 0; display: grid; place-items: center; padding: 16px; background-color: #060e1be8; background-image: conic-gradient(#0000001f 25%, transparent 0 50%, #0000001f 0 75%, transparent 0); background-size: 4px 4px; }
+.quit-dialog { width: min(420px, 100%); max-height: 100%; overflow: auto; padding: 16px; color: var(--ink); background: var(--panel); box-shadow: var(--bevel), var(--outline), var(--lift); }
+.quit-dialog h3 { margin: 8px 0 0; font-size: 24px; font-weight: 400; line-height: 1.25; text-shadow: var(--u) var(--u) 0 var(--hi); }
+.quit-dialog p { margin: 8px 0 12px; color: var(--ink-soft); font-size: 12px; }
+.quit-eyebrow { color: var(--danger); }
+.quit-eyebrow i { background: var(--danger); }
+.quit-losses { display: grid; gap: 8px; margin: 0 0 16px; padding: 10px 12px; list-style: none; background: var(--panel-2); box-shadow: var(--sunk), var(--outline); }
+.quit-losses li { display: flex; align-items: center; gap: 10px; font-size: 12px; line-height: 1.4; }
+.quit-losses li > :first-child { flex: none; }
+.quit-losses b { color: var(--danger); font-weight: 400; }
+.quit-actions { display: grid; gap: 10px; }
+@media (max-width: 420px) { .quit-dialog h3 { font-size: 16px; } }
+
+/* ── The summit: sunrise over a sea of clouds ─────────────────────── */
+.summit-img { position: absolute; left: calc(var(--px) * var(--x)); top: calc(var(--px) * var(--y)); width: calc(var(--px) * var(--w)); height: calc(var(--px) * var(--h)); max-width: none; display: block; image-rendering: pixelated; pointer-events: none; }
+/* the arrival: the whole mountain rises out of the fog, quickly at first, then slower, one art pixel per step */
+.summit-rise { position: absolute; z-index: 1; inset: 0; animation: summit-rise 4.6s 1 both; }
+@keyframes summit-rise {
+  0% { translate: 0 calc(var(--px) * var(--rise)); animation-timing-function: steps(24, end); }
+  40% { translate: 0 calc(var(--px) * 12); animation-timing-function: steps(8, end); }
+  70% { translate: 0 calc(var(--px) * 4); animation-timing-function: steps(4, end); }
+  100% { translate: 0 0; }
+}
+.summit-fog { position: absolute; z-index: 7; inset: 0; background: #eef3ff; opacity: 0; pointer-events: none; animation: summit-fog 3.8s steps(12, end) .2s 1 both; }
+@keyframes summit-fog { from { opacity: 1; } to { opacity: 0; } }
+.summit-title {
+  position: absolute; z-index: 8; inset-inline: 0; top: calc(var(--px) * 24); width: max-content; max-width: 92cqw; margin-inline: auto;
+  display: grid; justify-items: center; gap: 4px; padding: 8px 14px; text-align: center; color: #fff;
+  --edge: var(--night-edge); --hi: #36587f; --lo: #08111f; background: var(--night); box-shadow: var(--bevel), var(--outline);
+  animation: summit-title 1s steps(5, end) 4.4s 1 both; pointer-events: none;
+}
+.summit-title strong { font-size: 16px; font-weight: 400; letter-spacing: 1px; color: #ffd36b; text-shadow: var(--u) var(--u) 0 #000a; }
+.summit-title span { font-size: 12px; text-wrap: balance; }
+.summit-title small { font-size: 12px; color: #9fd0f0; }
+@keyframes summit-title { from { opacity: 0; translate: 0 calc(var(--px) * -5); } to { opacity: 1; translate: 0 0; } }
+@container (max-width: 250px) { .summit-title { padding: 6px 8px; } .summit-title strong { font-size: 12px; letter-spacing: 0; } }
+/* the explorer: at rest, he raises his arms from time to time */
+.summit-man { --chara-cell: calc(var(--px) * 24); position: absolute; left: calc(var(--px) * var(--at)); top: calc(var(--px) * var(--foot)); width: var(--chara-cell); translate: -50% -100%; }
+.summit-man .chara { animation: summit-cheer 9s steps(1, end) 4.6s infinite, chara-breathe 1.8s steps(1, end) infinite; }
+@keyframes summit-cheer { 0%, 4.99% { --frame: 5; } 5%, 9.99% { --frame: 4; } 10%, 14.99% { --frame: 5; } 15%, 19.99% { --frame: 4; } 20%, 100% { --frame: 0; } }
+.summit-man .run-breath { left: calc(var(--px) * 12); top: calc(var(--px) * 11); }
+.summit-img.flag-a { animation: flag-a 1.2s steps(1, end) infinite; }
+.summit-img.flag-b { animation: flag-b 1.2s steps(1, end) infinite; }
+@keyframes flag-a { 0%, 49.99% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes flag-b { 0%, 49.99% { opacity: 0; } 50%, 100% { opacity: 1; } }
+.summit-twinkle { position: absolute; z-index: 1; width: var(--px); height: var(--px); background: #fff; box-shadow: calc(var(--px) * -1) 0 0 0 #ffffff80, var(--px) 0 0 0 #ffffff80, 0 calc(var(--px) * -1) 0 0 #ffffff80, 0 var(--px) 0 0 #ffffff80; animation: summit-twinkle 2.7s steps(1, end) infinite; }
+@keyframes summit-twinkle { 0%, 59.99% { opacity: 1; } 60%, 100% { opacity: .15; } }
+.summit-bird { position: absolute; z-index: 1; left: 0; top: calc(var(--px) * 46); width: 0; height: 0; animation: summit-bird 30s steps(140, end) infinite; }
+.summit-bird i { position: absolute; left: 0; top: 0; width: var(--px); height: var(--px); background: transparent; }
+.summit-bird .wing-up { animation: flag-a .8s steps(1, end) infinite; }
+.summit-bird .wing-down { animation: flag-b .8s steps(1, end) infinite; }
+@keyframes summit-bird { from { translate: calc(var(--px) * 124) 0; } to { translate: calc(var(--px) * -16) 0; } }
+
+/* a paused summit shows the finished arrival, not its first frame */
+.is-summit.state-paused .summit-rise, .is-summit.state-paused .summit-fog, .is-summit.state-paused .summit-title { animation: none; }
+/* everything stands still when the session is paused or the scene is only a picture */
+.state-paused *, .state-idle * { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) { .expedition-scene *, .expedition-scene *::before { animation: none !important; } }
+
+/* progress along the way: tent → summit */
+.exp-gauge { position: absolute; z-index: 9; left: 8px; right: 8px; bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.exp-gauge-end { display: grid; place-items: center; padding: 2px; background: var(--night); --edge: var(--night-edge); box-shadow: var(--outline); }
+.exp-gauge-track { flex: 1; display: flex; align-items: center; height: 14px; overflow: hidden; background: var(--night); --edge: var(--night-edge); box-shadow: inset var(--u) var(--u) 0 0 #060f1c, var(--outline); }
+.exp-gauge-track i { display: block; height: 100%; background-color: var(--accent); background-image: linear-gradient(var(--accent-hi) 0 var(--u), transparent var(--u)), repeating-linear-gradient(90deg, transparent 0 8px, #00000040 8px 10px); transition: width .5s steps(8, end); }
+
+/* Pomodoro / altitude chips (handheld status bar look) */
+.hud-top { position: absolute; z-index: 10; top: 8px; right: 8px; left: 8px; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; pointer-events: none; }
+.hud-chip {
+  --edge: var(--night-edge);
+  --hi: #36587f;
+  --lo: #08111f;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  color: #fff;
+  line-height: 1.25;
+  background: var(--night);
+  box-shadow: var(--bevel), var(--outline);
+}
+.hud-chip strong { font-size: 24px; font-weight: 400; letter-spacing: 1px; text-shadow: var(--u) var(--u) 0 #000a; }
+.hud-chip small { font-size: 12px; }
+.hud-chip.is-paused { --hi: #5c6f85; background: #3d4f61; }
+.hud-chip.is-paused strong { animation: blink 1.2s steps(1, end) infinite; }
+
+/* ── The tent: home scene ─────────────────────────────────────────── */
+.tent-scene { container-type: inline-size; overflow: hidden; padding: 0; background: #0b1730; }
+.tent-stage {
+  --stage-w: 160cqw; /* the picture is cropped on narrow screens so the opening stays large */
+  --px: calc(var(--stage-w) / 240); /* one panorama pixel */
+  --tp: calc(var(--stage-w) / 256); /* one tent pixel */
+  position: relative;
+  width: var(--stage-w);
+  margin-left: -44cqw;
+  aspect-ratio: 1024 / 683;
+  overflow: hidden;
+  background: #0b1730;
+}
+@container (min-width: 560px) {
+  .tent-stage { --stage-w: 100cqw; margin-left: 0; }
+}
+.tent-panorama, .tent-base, .tent-head { position: absolute; display: block; max-width: none; image-rendering: pixelated; user-select: none; }
+.tent-panorama, .tent-base { left: 0; top: 0; width: 100%; height: 100%; }
+/* the head is a cut-out of the picture, laid back exactly where it was */
+.tent-head { left: 30.566%; top: 29.575%; width: 13.672%; height: 21.083%; }
+.tent-panorama { z-index: 0; }
+.tent-twinkle { position: absolute; z-index: 1; left: 0; top: 0; width: var(--px); height: var(--px); animation: twinkle 3.2s steps(1, end) infinite; }
+.tent-twinkle-b { animation-delay: -1.6s; }
+@keyframes twinkle { 0%, 49.99% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.tent-stage .snowfall { z-index: 2; }
+.tent-base { z-index: 3; }
+.tent-head { z-index: 4; animation: head-nod 6s steps(1, end) infinite; }
+@keyframes head-nod {
+  0%, 58% { translate: 0 0; }
+  58.01%, 70% { translate: 0 calc(var(--stage-w) * .0029); }
+  70.01%, 100% { translate: 0 0; }
+}
+/* the lantern's glow: hard rings, flickering */
+.tent-glow {
+  position: absolute;
+  z-index: 5;
+  left: 43.7%;
+  top: 13.8%;
+  width: 24%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffd27a40 0 22%, #ffc45c26 22% 46%, #ffb04412 46% 70%, transparent 70%);
+  pointer-events: none;
+  animation: flicker 3.4s steps(1, end) infinite;
+}
+@keyframes flicker { 0%, 100% { opacity: 1; } 18% { opacity: .78; } 36% { opacity: .95; } 52% { opacity: .7; } 70% { opacity: .9; } 84% { opacity: .8; } }
+/* cold breath out of his mouth */
+.tent-breath { position: absolute; z-index: 6; left: 42%; top: 44.2%; width: 0; height: 0; pointer-events: none; }
+.tent-breath i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--tp);
+  height: var(--tp);
+  background: #f4fbff;
+  box-shadow:
+    var(--tp) 0 0 #f4fbff,
+    calc(var(--tp) * -1) var(--tp) 0 #f4fbff,
+    0 var(--tp) 0 #ffffff,
+    var(--tp) var(--tp) 0 #ffffff,
+    calc(var(--tp) * 2) var(--tp) 0 #dff0fa,
+    0 calc(var(--tp) * 2) 0 #cfe6f4,
+    var(--tp) calc(var(--tp) * 2) 0 #cfe6f4;
+  opacity: 0;
+  animation: breath 3.6s steps(9, end) infinite;
+}
+.tent-breath i:nth-child(2) { animation-delay: -1.2s; }
+.tent-breath i:nth-child(3) { animation-delay: -2.4s; }
+@keyframes breath {
+  0% { translate: 0 0; scale: .5; opacity: 0; }
+  12% { opacity: 1; }
+  70% { opacity: .8; }
+  100% { translate: calc(var(--tp) * 15) calc(var(--tp) * -6); scale: 1.9; opacity: 0; }
+}
+/* steam off the stove */
+.tent-steam { position: absolute; z-index: 6; left: 89.6%; top: 56%; width: 0; height: 0; pointer-events: none; }
+.tent-steam i { position: absolute; left: 0; top: 0; width: calc(var(--tp) * 2); height: calc(var(--tp) * 2); background: #ffffffb0; box-shadow: calc(var(--tp) * 2) calc(var(--tp) * -1) 0 #ffffff80; opacity: 0; animation: steam 3s steps(8, end) infinite; }
+.tent-steam i:nth-child(2) { animation-delay: -1.5s; }
+@keyframes steam {
+  0% { translate: 0 0; opacity: 0; }
+  15% { opacity: 1; }
+  100% { translate: calc(var(--tp) * 3) calc(var(--tp) * -14); opacity: 0; }
+}
+
+/* The sign planted outside the tent: the summit's name, country, altitude… seen through the opening */
+.tent-sign {
+  --edge: var(--night-edge);
+  --hi: #36587f;
+  --lo: #08111f;
+  position: absolute;
+  z-index: 7;
+  /* pinned in the top-right corner of what is visible, so the mountain stays in view */
+  right: 11.5%; /* the narrow crop hides the right-hand 10% of the picture */
+  top: 2.5%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  align-items: center;
+  width: 23%;
+  padding: 10px 10px 10px;
+  color: #fff;
+  background: var(--night);
+  box-shadow: var(--bevel), var(--outline), var(--lift);
+  --drop: #00000066;
+  line-height: 1.25;
+}
+.tent-sign::before, .tent-sign::after { position: absolute; top: 4px; width: 4px; height: 4px; background: #7d9cbc; content: ''; }
+.tent-sign::before { left: 4px; }
+.tent-sign::after { right: 4px; }
+.tent-sign > span:not(.tent-sign-bar):not(.tent-sign-percent), .tent-sign > strong { grid-column: 1 / -1; min-width: 0; overflow-wrap: anywhere; }
+.tent-sign-kicker, .tent-sign-time { display: none; }
+.tent-sign-kicker { color: var(--sky); font-size: 8px; letter-spacing: 1px; padding-top: 4px; }
+.tent-sign-altitude .pixel-icon { display: none; }
+.tent-sign-name { font-size: 16px; font-weight: 400; text-shadow: var(--u) var(--u) 0 #000a; }
+.tent-sign-place { color: #cfe2f0; font-size: 12px; }
+.tent-sign-altitude { display: flex; align-items: center; gap: 8px; color: var(--warn); font-size: 12px; }
+.tent-sign-time { color: #9fb9d0; font-size: 8px; }
+.tent-sign .tent-sign-bar { --edge: #36587f; --lo: #08111f; grid-column: 1; height: 12px; margin-top: 4px; background: #060f1c; box-shadow: inset var(--u) var(--u) 0 0 #000, var(--outline); }
+.tent-sign-percent { margin-top: 4px; color: #fff; font-size: 8px; }
+.tent-actions { padding: 12px; background: var(--panel); border-top: 4px solid var(--edge); }
+
+/* Progression page: the scene at card size */
+.expedition-progress-scene .expedition-scene { width: min(100%, 240px); box-shadow: var(--outline), var(--lift); }
+
+/* Profile portrait / cutouts of the character sheet */
+.chara-hero-frame { position: relative; overflow: hidden; width: 100%; max-width: 360px; margin: 0 auto; line-height: 0; box-shadow: var(--outline), var(--lift); }
+.chara-hero-frame img { display: block; width: 100%; height: auto; }
+
+@container (min-width: 560px) {
+  .tent-sign { right: 2%; top: 3%; width: 28%; }
+  .tent-sign-kicker, .tent-sign-time { display: block; }
+  .tent-sign-altitude .pixel-icon { display: block; }
+}
+@container (min-width: 760px) {
+  .tent-sign { padding: 12px 16px 16px; gap: 6px 12px; }
+  .tent-sign-name { font-size: 24px; }
+  .tent-sign-place, .tent-sign-altitude { font-size: 16px; }
+  .tent-sign-time, .tent-sign-percent, .tent-sign-kicker { font-size: 12px; }
+}
+.tent-stage .snow-layer { animation-timing-function: steps(160, end), steps(4, end); }

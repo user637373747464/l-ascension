@@ -1,0 +1,46 @@
+{
+ "cellWidth": 133,
+ "cellHeight": 171,
+ "frames": {
+  "repos": {
+   "index": 0,
+   "width": 73,
+   "height": 152
+  },
+  "marche": {
+   "index": 1,
+   "width": 85,
+   "height": 150
+  },
+  "course": {
+   "index": 2,
+   "width": 88,
+   "height": 131
+  },
+  "grimpe": {
+   "index": 3,
+   "width": 122,
+   "height": 158
+  },
+  "saut": {
+   "index": 4,
+   "width": 87,
+   "height": 135
+  },
+  "celebration": {
+   "index": 5,
+   "width": 105,
+   "height": 162
+  },
+  "fatigue": {
+   "index": 6,
+   "width": 129,
+   "height": 148
+  },
+  "interaction": {
+   "index": 7,
+   "width": 112,
+   "height": 169
+  }
+ }
+}

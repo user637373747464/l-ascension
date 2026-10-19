@@ -1,0 +1,30 @@
+{
+  "name": "Ascension — Camp de base",
+  "short_name": "Ascension",
+  "description": "Camp, agenda et progression alpine.",
+  "lang": "fr-FR",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#cfe1ee",
+  "theme_color": "#cfe1ee",
+  "icons": [
+    {
+      "src": "./icons/ascension.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/ascension-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/ascension-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
